@@ -12,20 +12,16 @@ flat_image_size = 12288
 
 def main():
 	# resize.resize_all_in_dir("/home/sallese/flickr-logo-tensorflow/logo-tensorflow/file/test-resize/", 500)
-	# Y train 
-	image_names, Y_train = load_ys("/home/sallese/flickr-logo-tensorflow/logo-tensorflow/trainset-indexed.txt")
-	flat = Y_train.flatten()
-	print(flat.shape)
-	one_hot = tf.one_hot(flat, 32)
+	
+	# Set up Y train 
+	image_names, load_Y_train = load_ys("/home/sallese/flickr-logo-tensorflow/logo-tensorflow/trainset-indexed.txt")
+	flat_Y_train = load_Y_train.flatten()
+	one_hot_Y_train = tf.one_hot(flat_Y_train, 32)
 	sess = tf.Session()
 
 	# Run the session (approx. 1 line)
-	one_hot = sess.run(one_hot)
-	print(one_hot.shape)
-	print("onehot")
-	one_hot = one_hot.T
-	print(one_hot.shape)
-	print(one_hot[9][:])
+	one_hot_Y_train = sess.run(one_hot_Y_train)
+	one_hot_Y_train = one_hot_Y_train.T
 
 	# X_train = load_xs("/home/sallese/flickr-logo-tensorflow/logo-tensorflow/resized-images/", image_names)
 	X_train = load_xs("/home/sallese/flickr-logo-tensorflow/logo-tensorflow/resized-images-small/", image_names)
@@ -39,21 +35,14 @@ def main():
 	tf.set_random_seed(1)                             # to keep consistent results
 	seed = 3                                          # to keep consistent results
 	
-
-	
 	(n_x, m) = X_train.shape                          # (n_x: input size, m : number of examples in the train set)
 	
-	print("n_x, m")
-	print(n_x, m)
-	print("HELLO")
-	n_y = 32                            # n_y : output size
-	print(n_y)
 
+	n_y = 32                            # n_y : output size
 	costs = []
 
 	# X, Y = create_placeholders(flat_image_size, 32)
 	X, Y = create_placeholders(n_x, n_y)
-	print("X, Y", X, " ", Y)
 	parameters = initialize_parameters()
 
 	Z3 = forward_propagation(X, parameters)
@@ -64,8 +53,6 @@ def main():
 
 	# Initialize all the variables
 	init = tf.global_variables_initializer()
-	print(X.shape)
-	print(Y.shape)
 
 	with tf.Session() as sess:
 
@@ -78,7 +65,7 @@ def main():
 			epoch_cost = 0.                       # Defines a cost related to an epoch
 			num_minibatches = int(m / minibatch_size) # number of minibatches of size minibatch_size in the train set
 			seed = seed + 1
-			minibatches = random_mini_batches(X_train, one_hot, minibatch_size, seed)
+			minibatches = random_mini_batches(X_train, one_hot_Y_train, minibatch_size, seed)
 
 			for minibatch in minibatches:
 
@@ -88,8 +75,6 @@ def main():
 				# IMPORTANT: The line that runs the graph on a minibatch.
 				# Run the session to execute the "optimizer" and the "cost", the feedict should contain a minibatch for (X,Y).
 				### START CODE HERE ### (1 line)
-				print("minibatchx shape: ", minibatch_X.shape)
-				print("minibatchy shape: ", minibatch_Y.shape)
 				_ , minibatch_cost = sess.run([optimizer, cost], feed_dict = {X: minibatch_X, Y: minibatch_Y})
 				### END CODE HERE ###
 
@@ -116,29 +101,21 @@ def main():
 		# # Calculate accuracy on the test set
 		# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
-		print ("Train Accuracy:", accuracy.eval({X: X_train, Y: one_hot}))
+		print ("Train Accuracy:", accuracy.eval({X: X_train, Y: one_hot_Y_train}))
 		# print ("Test Accuracy:", accuracy.eval({X: X_test, Y: Y_test}))
 
 
 def load_ys(filename):
 	dataset_descriptor =  open(filename, 'r').read().split('\r\n')
 	# print(len(dataset_descriptor))
-	Y_train = np.zeros(shape=(1, len(dataset_descriptor) - 1))
+	load_Y_train = np.zeros(shape=(1, len(dataset_descriptor) - 1))
 	image_names = np.empty((1, len(dataset_descriptor) - 1), dtype="S50")
 	for idx, line in enumerate(dataset_descriptor):
 		line = line.split(",")
 		# for some reason there's an extra entry with []
 		if len(line) == 2:
-			# print("Line[0]: " + line[0] + "\nLine[1]: " + line[1])
-			Y_train[0][idx] = line[0]
+			load_Y_train[0][idx] = line[0]
 			image_names[0][idx] = line[1]
-			# print(line[1])
-			# print("added " + image_names[0][idx] + " to image_names")
-	# print(image_names.shape)
-	# print("image_names: " + image_names[0][1] + ", " + image_names[0][50] )
-	# print(Y_train.shape)
-	# print(Y_train[0])
-	# print(image_names)
 	im = Image.open('/home/sallese/flickr-logo-tensorflow/logo-tensorflow/flatten.jpg')
 	data = np.array(im)
 	flattened = data.flatten()
@@ -147,17 +124,14 @@ def load_ys(filename):
 	data2 = np.array(im2)
 	flattened2 = data2.flatten()
 	flattened2 = flattened2.reshape(len(flattened2), 1)
-	# print(flattened2.shape)
-	return image_names, Y_train
+	return image_names, load_Y_train
 
 def load_xs(path_to_pictures, image_names):
 	print("LOADING XS")
 	X_train = np.zeros((flat_image_size, 0), dtype=int)
-	print(X_train.shape)
 	for file in os.listdir(path_to_pictures):
 		for idx, image_name in enumerate(image_names[0][:]):
 			image_name = image_name.split(".")[0]
-			# print("image: ", image_name)
 			if image_name in file:
 				im = Image.open(path_to_pictures + file)
 				data = np.array(im)
@@ -165,25 +139,8 @@ def load_xs(path_to_pictures, image_names):
 				flattened = flattened.reshape(len(flattened), 1)
 				flattened = flattened / 255
 				X_train = np.hstack((X_train, flattened))
-	print("X_train shape: ",  X_train.shape)
 	return X_train
 
-			# if "2325670467.jpg" in image_names[:,:]:
-				# print "found it!"
-	# for picture in os.listdir(path_to_pictures):
-	# 	print(picture)
-
-
-	# print data.shape
-	# print flattened.shape
-	# flattened = flattened.reshape(len(flattened), 1)
-	# print flattened.shape
-	# both = np.hstack((flattened, flattened2))
-	# print(both.shape)
-
-	# for line in textfile:
-	# 	Y[index] = before_comma
-	# 	X[index] = load_jpg
 
 def create_placeholders(n_x, n_y):
 	"""
@@ -289,8 +246,6 @@ def compute_cost(Z3, Y):
 	# to fit the tensorflow requirement for tf.nn.softmax_cross_entropy_with_logits(...,...)
 	logits = tf.transpose(Z3)
 	labels = tf.transpose(Y)
-	print("logits", logits)
-	print("labels", labels)
 
 	### START CODE HERE ### (1 line of code)
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = logits, labels = labels))
@@ -313,25 +268,16 @@ def random_mini_batches(X, Y, mini_batch_size = 64, seed = 0):
 
 	np.random.seed(seed)            # To make your "random" minibatches the same as ours
 	m = X.shape[1]                  # number of training examples
-	print("m", m)
 	mini_batches = []
-	print("Before shuffling")
-	print("X shape ", X.shape)
-	print("Y shape ", Y.shape)
 
 	# Step 1: Shuffle (X, Y)
 	permutation = list(np.random.permutation(m))
-	print("permutation", permutation)
-	print("X perm ", X[:, permutation])
-	print("Y perm ", Y[:, permutation] )
 	shuffled_X = X[:, permutation]
 	shuffled_Y = Y[:, permutation].reshape((32,m))
 
 	# Step 2: Partition (shuffled_X, shuffled_Y). Minus the end case.
 	num_complete_minibatches = math.floor(m/mini_batch_size) # number of mini batches of size mini_batch_size in your partitionning
 	num_complete_minibatches = int(num_complete_minibatches)
-	print("floor: ", num_complete_minibatches)
-	print(num_complete_minibatches)
 	for k in range(0, num_complete_minibatches):
 		### START CODE HERE ### (approx. 2 lines)
 		mini_batch_X = shuffled_X[:,k * mini_batch_size:(k + 1) * mini_batch_size]
